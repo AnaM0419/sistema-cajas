@@ -84,6 +84,46 @@ else:
         hide_index=True, use_container_width=True,
     )
 
+# --------------------------------------- transacciones efectivas por dia
+st.divider()
+st.subheader("Transacciones efectivas por día")
+st.caption("Cuántas transacciones de verdad se hicieron en cada caja. "
+           "No cuentan las anuladas, sus espejos, ni los movimientos internos "
+           "como acreditaciones, traspasos y cobros de deuda.")
+
+tx = pd.DataFrame(db.transacciones_dia(cli))
+if tx.empty:
+    st.caption("Sin transacciones efectivas en el sistema.")
+else:
+    tx = tx[(tx["dia"] >= str(desde)) & (tx["dia"] <= str(hasta))
+            & (tx["caja"].isin(elegidas))]
+
+if not tx.empty:
+    resumen = (tx.groupby("caja")
+                 .agg(transacciones=("transacciones", "sum"),
+                      cobrado=("cobrado_clientes", "sum"),
+                      del_proveedor=("del_proveedor", "sum"),
+                      ganancia=("ganancia", "sum"))
+                 .reset_index())
+    st.dataframe(
+        resumen, hide_index=True, use_container_width=True,
+        column_config={
+            "caja": "Caja",
+            "transacciones": st.column_config.NumberColumn("Transacciones"),
+            "cobrado": st.column_config.NumberColumn("Cobrado a clientes", format="%.2f"),
+            "del_proveedor": st.column_config.NumberColumn("Del proveedor", format="%.4f"),
+            "ganancia": st.column_config.NumberColumn("Ganancia", format="%.4f"),
+        },
+    )
+    st.caption(f"**{int(resumen['transacciones'].sum())}** transacciones efectivas "
+               f"en el período.")
+
+    with st.expander("Ver el detalle día por día"):
+        dia_caja = (tx.pivot_table(index="dia", columns="caja",
+                                   values="transacciones", aggfunc="sum")
+                      .fillna(0).astype(int).sort_index(ascending=False))
+        st.dataframe(dia_caja, use_container_width=True)
+
 # ------------------------------------------- rastro de caja y sistema
 st.divider()
 st.subheader("Rastro de caja y sistema")

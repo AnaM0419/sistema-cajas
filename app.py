@@ -1,5 +1,8 @@
 """Tablero: los saldos de las tres cajas y las alertas, al momento."""
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import streamlit as st
 import pandas as pd
 
@@ -58,6 +61,26 @@ b.metric("Sistema total", db.dinero(tot_si))
 c.metric("Deuda de personas", db.dinero(tot_de))
 d.metric("Respaldo total", db.dinero(tot_ef + tot_si + tot_de),
          help="Efectivo + sistema + deuda por cobrar: todo el dinero del negocio.")
+
+# ------------------------------------------------------- hoy, por caja
+st.divider()
+st.subheader("Transacciones de hoy")
+st.caption("Solo las efectivas: las que cobraron comisión a un cliente. "
+           "Las anuladas y sus espejos no cuentan.")
+
+hoy = datetime.now(ZoneInfo("America/Guayaquil")).date().isoformat()
+tx = {t["caja"]: t for t in db.transacciones_dia(cli, hoy)}
+
+cols_tx = st.columns(len(filas))
+for col, f in zip(cols_tx, filas):
+    t = tx.get(f["nombre"], {})
+    col.metric(f["nombre"], int(t.get("transacciones", 0) or 0),
+               help=f"Ganancia de hoy: {db.dinero(t.get('ganancia', 0), 4)}")
+
+total_tx = sum(int(t.get("transacciones", 0) or 0) for t in tx.values())
+total_gan = sum(float(t.get("ganancia", 0) or 0) for t in tx.values())
+st.caption(f"**{total_tx}** transacciones efectivas hoy entre las tres cajas · "
+           f"ganancia {db.dinero(total_gan, 4)}")
 
 # ---------------------------------------------------------------- deudas
 st.divider()

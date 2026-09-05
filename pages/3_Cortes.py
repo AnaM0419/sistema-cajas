@@ -75,7 +75,8 @@ if st.button("Cerrar corte de las tres cajas", type="primary", disabled=not conf
         df = pd.DataFrame(resultados)
         st.dataframe(
             df[["caja", "efectivo_esperado", "efectivo_contado", "diferencia_efectivo",
-                "sistema_esperado", "deuda_total", "n_movimientos", "comisiones_periodo"]],
+                "sistema_esperado", "deuda_total", "n_efectivas", "n_movimientos",
+                "comisiones_periodo"]],
             hide_index=True, use_container_width=True,
             column_config={
                 "caja": "Caja",
@@ -84,14 +85,18 @@ if st.button("Cerrar corte de las tres cajas", type="primary", disabled=not conf
                 "diferencia_efectivo": st.column_config.NumberColumn("Diferencia", format="%.2f"),
                 "sistema_esperado": st.column_config.NumberColumn("Sistema", format="%.2f"),
                 "deuda_total": st.column_config.NumberColumn("Deuda", format="%.2f"),
-                "n_movimientos": st.column_config.NumberColumn("Movs."),
+                "n_efectivas": st.column_config.NumberColumn(
+                    "Transacciones", help="Efectivas: sin anuladas ni espejos."),
+                "n_movimientos": st.column_config.NumberColumn(
+                    "Filas", help="Todo lo registrado, incluidos anulados y ajustes."),
                 "comisiones_periodo": st.column_config.NumberColumn("Ganancia", format="%.2f"),
             },
         )
-        a, b, c = st.columns(3)
+        a, b, c, d = st.columns(4)
         a.metric("Efectivo total contado", db.dinero(df["efectivo_contado"].sum()))
         b.metric("Descuadre total", db.dinero(df["diferencia_efectivo"].sum()))
-        c.metric("Ganancia del período", db.dinero(df["comisiones_periodo"].sum()))
+        c.metric("Transacciones efectivas", int(df["n_efectivas"].sum()))
+        d.metric("Ganancia del período", db.dinero(df["comisiones_periodo"].sum()))
 
 # ------------------------------------------------------------- historial
 st.divider()

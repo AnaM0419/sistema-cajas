@@ -229,6 +229,15 @@ def campo_monto(etiqueta: str, clave: str, ayuda: str | None = None,
     return float(v) if v is not None else 0.0
 
 
+def transacciones_dia(cli: Client, dia: str | None = None) -> list[dict]:
+    """Transacciones EFECTIVAS por caja: las que cobraron comisión, no
+    anuladas y que no son el espejo de otra."""
+    q = cli.table("v_transacciones_dia").select("*")
+    if dia:
+        q = q.eq("dia", dia)
+    return q.order("caja").execute().data
+
+
 def movimientos_saldos(cli: Client, desde: str, hasta: str) -> list[dict]:
     """Movimientos con el efectivo y el saldo que quedaron después de cada uno."""
     return (cli.table("v_movimientos_saldos").select("*")
