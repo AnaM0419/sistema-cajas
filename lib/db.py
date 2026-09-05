@@ -202,6 +202,37 @@ def cerrar_corte(cli: Client, caja_id: int, tipo: str,
     }).execute().data
 
 
+def campo_monto(etiqueta: str, clave: str, ayuda: str | None = None,
+                valor: float | None = None) -> float:
+    """Campo de dinero que se teclea en centavos, sin borrar nada primero.
+
+    Arranca VACÍO: no hay un 0.00 que haya que seleccionar y borrar.
+    Escribes 1000 y queda $10,00 · escribes 205 y queda $2,05 ·
+    escribes 5 y queda $0,05. El punto se acomoda solo.
+    """
+    inicial = "" if not valor else str(int(round(float(valor) * 100)))
+    texto = st.text_input(
+        etiqueta, value=inicial, key=clave, help=ayuda,
+        placeholder="Teclea los centavos: 1000 = $10,00",
+    )
+    digitos = "".join(c for c in texto if c.isdigit())
+    monto = int(digitos) / 100 if digitos else 0.0
+    if digitos:
+        st.markdown(
+            f"<div style='margin-top:-10px;margin-bottom:6px;font-size:1.7rem;"
+            f"font-weight:700;line-height:1.2'>{dinero(monto)}</div>",
+            unsafe_allow_html=True,
+        )
+    return monto
+
+
+def movimientos_saldos(cli: Client, desde: str, hasta: str) -> list[dict]:
+    """Movimientos con el efectivo y el saldo que quedaron después de cada uno."""
+    return (cli.table("v_movimientos_saldos").select("*")
+            .gte("fecha", desde).lte("fecha", hasta)
+            .order("fecha", desc=True).execute().data)
+
+
 def dinero(v, decimales: int = 2) -> str:
     """Formato ecuatoriano: $ 1.234,56 — con más decimales cuando la
     comisión del proveedor trae fracciones de centavo."""

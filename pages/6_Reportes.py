@@ -20,7 +20,7 @@ hasta = b.date_input("Hasta", value=date.today())
 elegidas = c.multiselect("Cajas", [x["nombre"] for x in todas],
                          default=[x["nombre"] for x in todas])
 
-datos = (cli.table("v_movimientos_full").select("*")
+datos = (cli.table("v_movimientos_saldos").select("*")
          .gte("fecha", str(desde))
          .lte("fecha", str(hasta + timedelta(days=1)))
          .order("fecha", desc=True).execute().data)
@@ -84,6 +84,46 @@ else:
         hide_index=True, use_container_width=True,
     )
 
+# ------------------------------------------- rastro de caja y sistema
+st.divider()
+st.subheader("Rastro de caja y sistema")
+st.caption("Movimiento por movimiento, cómo quedaron la gaveta y la cuenta "
+           "después de cada uno. Sirve para comprobar que los dos lados se "
+           "movieron como debían.")
+
+caja_rastro = st.selectbox("¿Qué caja quieres seguir?", sorted(df["caja"].unique()),
+                           key="caja_rastro")
+rastro = (df[df["caja"] == caja_rastro]
+          .sort_values(["fecha", "id"])
+          .copy())
+
+if rastro.empty:
+    st.caption("Sin movimientos de esta caja en el período.")
+else:
+    r1, r2 = st.columns(2)
+    r1.metric(f"Efectivo al cierre del período", db.dinero(rastro["efectivo_despues"].iloc[-1]))
+    r2.metric(f"Sistema al cierre del período", db.dinero(rastro["sistema_despues"].iloc[-1]))
+
+    vista = rastro.sort_values(["fecha", "id"], ascending=False).copy()
+    vista["momento"] = vista["fecha"].dt.strftime("%d/%m %H:%M")
+    st.dataframe(
+        vista[["id", "momento", "tipo", "monto", "delta_efectivo", "efectivo_despues",
+               "delta_sistema", "sistema_despues", "beneficiario", "motivo", "anulado"]],
+        hide_index=True, use_container_width=True,
+        column_config={
+            "id": "#", "momento": "Cuándo", "tipo": "Movimiento",
+            "monto": st.column_config.NumberColumn("Monto", format="%.2f"),
+            "delta_efectivo": st.column_config.NumberColumn("Movió caja", format="%+.2f"),
+            "efectivo_despues": st.column_config.NumberColumn("Quedó en caja", format="%.2f"),
+            "delta_sistema": st.column_config.NumberColumn("Movió sistema", format="%+.2f"),
+            "sistema_despues": st.column_config.NumberColumn("Quedó en sistema", format="%.2f"),
+            "beneficiario": "Para quién", "motivo": "Motivo", "anulado": "Anulado",
+        },
+    )
+
+    st.line_chart(rastro.set_index("fecha")[["efectivo_despues", "sistema_despues"]],
+                  height=260)
+
 # ------------------------------------------------------------- detalle
 st.divider()
 st.subheader("Detalle")
@@ -91,7 +131,8 @@ detalle = df.copy()
 detalle["fecha"] = detalle["fecha"].dt.strftime("%d/%m/%Y %H:%M")
 st.dataframe(
     detalle[["id", "fecha", "caja", "tipo", "monto", "comision_local",
-             "comision_proveedor", "ganancia", "delta_efectivo", "delta_sistema",
+             "comision_proveedor", "ganancia", "delta_efectivo", "efectivo_despues",
+             "delta_sistema", "sistema_despues",
              "beneficiario", "motivo", "operador", "anulado"]],
     hide_index=True, use_container_width=True,
 )

@@ -98,9 +98,9 @@ with tab_manual:
         placeholder="Busca el producto",
     )
 
-    monto = st.number_input("Valor que mostró la plataforma ($)",
-                            min_value=0.0, step=0.05, format="%.2f",
-                            key="monto_manual")
+    monto = db.campo_monto(
+        "Valor que mostró la plataforma ($)", "monto_manual",
+        ayuda="El valor de la recarga o del pago, NO lo que le cobras al cliente.")
     ref = st.text_input("Referencia del comprobante (opcional)", key="ref_manual")
 
     if producto and monto > 0:
@@ -155,11 +155,9 @@ with tab_foto:
                     format_func=lambda p: p["nombre"],
                     key="prod_foto",
                 )
-                monto_f = st.number_input(
-                    "Confirma el valor ($)", min_value=0.0, step=0.05,
-                    format="%.2f", value=float(leido["valor"] or 0.0),
-                    key="monto_foto",
-                )
+                monto_f = db.campo_monto(
+                    "Confirma el valor ($)", "monto_foto",
+                    valor=float(leido["valor"] or 0.0))
                 ref_f = st.text_input("Referencia", key="ref_foto")
 
                 st.caption("Revisa los dos datos antes de guardar: la lectura "
@@ -174,8 +172,7 @@ with tab_saldo:
                "baja la gaveta y sube el saldo. Es la misma acreditación que se "
                "hace en los bancos.")
 
-    valor = st.number_input("Valor del saldo comprado ($)", min_value=0.0,
-                            step=10.0, format="%.2f", key="monto_saldo")
+    valor = db.campo_monto("Valor del saldo comprado ($)", "monto_saldo")
 
     hubo_recargo = st.checkbox("Se sacó dinero para el recargo", key="rec_saldo")
     recargo = 0.0

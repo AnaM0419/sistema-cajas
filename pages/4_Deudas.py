@@ -135,11 +135,9 @@ with t_detalle:
         d = opciones[elegida]
 
         col1, col2 = st.columns(2)
-        pago = col1.number_input(
-            "¿Cuánto abona? ($)", min_value=0.0,
-            max_value=float(d["saldo_pendiente"]),
-            value=float(d["saldo_pendiente"]), step=1.0, format="%.2f",
-        )
+        with col1:
+            pago = db.campo_monto("¿Cuánto abona? ($)", f"abono_{d['id']}",
+                                  valor=float(d["saldo_pendiente"]))
         destino = col2.radio(
             "¿Dónde entra el dinero?", ["efectivo", "sistema"],
             format_func=lambda v: ("A la gaveta (efectivo)" if v == "efectivo"

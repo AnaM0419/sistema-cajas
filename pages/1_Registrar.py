@@ -38,7 +38,7 @@ st.divider()
 
 # El monto va fuera del formulario para que la comisión se autocomplete
 # desde la tabla de tarifas apenas lo escribes.
-monto = st.number_input("Monto ($)", min_value=0.0, step=1.0, format="%.2f")
+monto = db.campo_monto("Monto ($)", "monto_banco")
 
 sugerida = 0.0
 if monto > 0 and tipo in ("retiro", "deposito"):

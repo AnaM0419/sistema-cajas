@@ -36,16 +36,12 @@ for col, caja in zip(cols, todas):
     with col:
         st.markdown(f"**{caja['nombre']}**")
         st.caption(f"Esperado: {db.dinero(s['efectivo'])}")
-        contado[caja["id"]] = st.number_input(
-            "Efectivo contado ($)", min_value=0.0, step=1.0, format="%.2f",
-            key=f"ef_{caja['id']}",
-        )
+        contado[caja["id"]] = db.campo_monto(
+            "Efectivo contado ($)", f"ef_{caja['id']}")
         st.caption(f"Sistema esperado: {db.dinero(s['sistema'])}")
-        rep = st.number_input(
-            "Sistema según el banco ($)", min_value=0.0, step=1.0, format="%.2f",
-            key=f"si_{caja['id']}",
-            help="Opcional. Déjalo en 0 si no lo vas a verificar ahora.",
-        )
+        rep = db.campo_monto(
+            "Sistema según el banco ($)", f"si_{caja['id']}",
+            ayuda="Opcional. Déjalo vacío si no lo vas a verificar ahora.")
         reportado[caja["id"]] = rep if rep > 0 else None
 
         dif = contado[caja["id"]] - float(s["efectivo"])
