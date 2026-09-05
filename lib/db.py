@@ -1,5 +1,6 @@
 """Conexión a Supabase, inicio de sesión y consultas comunes."""
 
+import inspect
 import os
 import streamlit as st
 from dotenv import load_dotenv
@@ -202,28 +203,30 @@ def cerrar_corte(cli: Client, caja_id: int, tipo: str,
     }).execute().data
 
 
+# Las versiones viejas de Streamlit no aceptan 'placeholder' en number_input.
+_ACEPTA_PLACEHOLDER = "placeholder" in inspect.signature(st.number_input).parameters
+
+
 def campo_monto(etiqueta: str, clave: str, ayuda: str | None = None,
                 valor: float | None = None) -> float:
-    """Campo de dinero que se teclea en centavos, sin borrar nada primero.
+    """Campo de dinero en dólares, que arranca VACÍO.
 
-    Arranca VACÍO: no hay un 0.00 que haya que seleccionar y borrar.
-    Escribes 1000 y queda $10,00 · escribes 205 y queda $2,05 ·
-    escribes 5 y queda $0,05. El punto se acomoda solo.
+    Se escribe como siempre: 10 son $10,00 y 1.05 son $1,05. La diferencia
+    es que el campo no trae un 0.00 que haya que borrar antes de teclear.
+    Mientras está vacío vale cero.
     """
-    inicial = "" if not valor else str(int(round(float(valor) * 100)))
-    texto = st.text_input(
-        etiqueta, value=inicial, key=clave, help=ayuda,
-        placeholder="Teclea los centavos: 1000 = $10,00",
+    extra = {"placeholder": "0.00"} if _ACEPTA_PLACEHOLDER else {}
+    v = st.number_input(
+        etiqueta,
+        min_value=0.0,
+        value=(float(valor) if valor else None),   # None = campo vacío
+        step=0.01,
+        format="%.2f",
+        key=clave,
+        help=ayuda,
+        **extra,
     )
-    digitos = "".join(c for c in texto if c.isdigit())
-    monto = int(digitos) / 100 if digitos else 0.0
-    if digitos:
-        st.markdown(
-            f"<div style='margin-top:-10px;margin-bottom:6px;font-size:1.7rem;"
-            f"font-weight:700;line-height:1.2'>{dinero(monto)}</div>",
-            unsafe_allow_html=True,
-        )
-    return monto
+    return float(v) if v is not None else 0.0
 
 
 def movimientos_saldos(cli: Client, desde: str, hasta: str) -> list[dict]:
