@@ -5,12 +5,15 @@ from datetime import date, timedelta
 
 import streamlit as st
 import pandas as pd
-from lib import db
+from lib import db, ui
 
-st.set_page_config(page_title="Reportes", page_icon="🧾", layout="wide")
+st.set_page_config(page_title="Reportes", page_icon="🧾", layout="wide",
+                   initial_sidebar_state="expanded")
+
 cli = db.sesion()
-
-st.title("Reportes")
+ui.estilos("Reportes", "Filtra, revisa el rastro del dinero y descarga a Excel",
+           correo=st.session_state.get("correo"),
+           al_salir=db.cerrar_sesion)
 
 todas = db.cajas(cli)
 
@@ -39,8 +42,8 @@ con_comision = df[(df["cuenta_comision"]) & (~df["anulado"]) & (df["reversa_de"]
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("Movimientos", len(df))
 k2.metric("Con comisión", len(con_comision))
-k3.metric("Cobrado a clientes", db.dinero(con_comision["comision_local"].sum()))
-k4.metric("Ganancia total", db.dinero(con_comision["ganancia"].sum()),
+k3.metric("Cobrado a clientes", ui.monto(con_comision["comision_local"].sum()))
+k4.metric("Ganancia total", ui.monto(con_comision["ganancia"].sum(), 4),
           help="Lo que cobraste a los clientes más lo que te reconoció el proveedor.")
 
 st.divider()
@@ -141,25 +144,11 @@ if rastro.empty:
     st.caption("Sin movimientos de esta caja en el período.")
 else:
     r1, r2 = st.columns(2)
-    r1.metric(f"Efectivo al cierre del período", db.dinero(rastro["efectivo_despues"].iloc[-1]))
-    r2.metric(f"Sistema al cierre del período", db.dinero(rastro["sistema_despues"].iloc[-1]))
+    r1.metric("Efectivo al cierre del período", ui.monto(rastro["efectivo_despues"].iloc[-1]))
+    r2.metric("Sistema al cierre del período", ui.monto(rastro["sistema_despues"].iloc[-1]))
 
-    vista = rastro.sort_values(["fecha", "id"], ascending=False).copy()
-    vista["momento"] = vista["fecha"].dt.strftime("%d/%m %H:%M")
-    st.dataframe(
-        vista[["id", "momento", "tipo", "monto", "delta_efectivo", "efectivo_despues",
-               "delta_sistema", "sistema_despues", "beneficiario", "motivo", "anulado"]],
-        hide_index=True, use_container_width=True,
-        column_config={
-            "id": "#", "momento": "Cuándo", "tipo": "Movimiento",
-            "monto": st.column_config.NumberColumn("Monto", format="%.2f"),
-            "delta_efectivo": st.column_config.NumberColumn("Movió caja", format="%+.2f"),
-            "efectivo_despues": st.column_config.NumberColumn("Quedó en caja", format="%.2f"),
-            "delta_sistema": st.column_config.NumberColumn("Movió sistema", format="%+.2f"),
-            "sistema_despues": st.column_config.NumberColumn("Quedó en sistema", format="%.2f"),
-            "beneficiario": "Para quién", "motivo": "Motivo", "anulado": "Anulado",
-        },
-    )
+    vista = rastro.sort_values(["fecha", "id"], ascending=False)
+    ui.tabla_movimientos(vista, con_saldos=True, alto=420)
 
     st.line_chart(rastro.set_index("fecha")[["efectivo_despues", "sistema_despues"]],
                   height=260)

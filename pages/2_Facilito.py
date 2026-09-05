@@ -11,12 +11,15 @@ del comprobante (cuando ayude). Los dos terminan en la misma confirmación.
 """
 
 import streamlit as st
-from lib import db, ocr
+from lib import db, ocr, ui
 
-st.set_page_config(page_title="Facilito", page_icon="🧾", layout="centered")
+st.set_page_config(page_title="Facilito", page_icon="🧾", layout="wide",
+                   initial_sidebar_state="expanded")
+
 cli = db.sesion()
-
-st.title("Caja Facilito")
+ui.estilos("Caja Facilito", "Recargas, juegos, pagos de servicio y compra de saldo",
+           correo=st.session_state.get("correo"),
+           al_salir=db.cerrar_sesion)
 
 fac = next((c for c in db.cajas(cli) if c["tipo"] == "facilito"), None)
 if not fac:
@@ -26,8 +29,8 @@ caja_id = fac["id"]
 
 saldo = next(s for s in db.saldos(cli) if s["caja_id"] == caja_id)
 c1, c2 = st.columns(2)
-c1.metric("Efectivo en caja", db.dinero(saldo["efectivo"]))
-c2.metric("Saldo Facilito", db.dinero(saldo["sistema"]))
+ui.saldo_tarjeta(c1, "Efectivo en caja", saldo["efectivo"])
+ui.saldo_tarjeta(c2, "Saldo Facilito", saldo["sistema"])
 
 catalogo = db.productos(cli)
 por_id = {p["id"]: p for p in catalogo}
@@ -184,8 +187,8 @@ with tab_saldo:
 
     if valor > 0:
         a, b = st.columns(2)
-        a.metric("Efectivo después", db.dinero(float(saldo["efectivo"]) - valor - recargo))
-        b.metric("Saldo Facilito después", db.dinero(float(saldo["sistema"]) + valor))
+        a.metric("Efectivo después", ui.monto(float(saldo["efectivo"]) - valor - recargo))
+        b.metric("Saldo Facilito después", ui.monto(float(saldo["sistema"]) + valor))
 
     if st.button("Registrar compra de saldo", type="primary",
                  use_container_width=True):

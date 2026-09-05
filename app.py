@@ -1,4 +1,4 @@
-"""Tablero: los saldos de las tres cajas y las alertas, al momento."""
+"""Tablero: los saldos de las tres cajas, las alertas y el día de hoy."""
 
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -6,18 +6,16 @@ from zoneinfo import ZoneInfo
 import streamlit as st
 import pandas as pd
 
-from lib import db
+from lib import db, ui
 
-st.set_page_config(page_title="Sistema de Cajas", page_icon="🧾", layout="wide")
+st.set_page_config(page_title="Sistema de Cajas", page_icon="🧾",
+                   layout="wide", initial_sidebar_state="expanded")
 
 cli = db.sesion()
-
-with st.sidebar:
-    st.caption(f"Sesión: {st.session_state.get('correo','')}")
-    if st.button("Cerrar sesión"):
-        db.cerrar_sesion()
-
-st.title("Estado de las cajas")
+ui.estilos("Estado de las cajas",
+           "Cómo está todo ahora mismo",
+           correo=st.session_state.get("correo"),
+           al_salir=db.cerrar_sesion)
 
 filas = db.saldos(cli)
 if not filas:
@@ -25,8 +23,7 @@ if not filas:
     st.stop()
 
 # ---------------------------------------------------------------- alertas
-avisos = db.alertas(cli)
-for a in avisos:
+for a in db.alertas(cli):
     texto = f"**{a['caja']}** · {a['mensaje']}"
     if a["nivel"] == "critico":
         st.error(texto, icon="🔴")
@@ -40,14 +37,15 @@ cols = st.columns(len(filas))
 for col, f in zip(cols, filas):
     d = deuda_caja.get(f["caja_id"], {})
     with col:
-        st.subheader(f["nombre"])
-        st.metric("Efectivo en caja", db.dinero(f["efectivo"]))
-        st.metric("Saldo en el sistema", db.dinero(f["sistema"]))
-        st.metric("Deuda neta a favor", db.dinero(d.get("neto", 0)),
-                  help=f"Le deben {db.dinero(d.get('por_cobrar', 0))} · "
-                       f"ella debe {db.dinero(d.get('por_pagar', 0))}")
+        st.markdown(f"#### {f['nombre']}")
+        ui.saldo_tarjeta(col, "Efectivo en caja", f["efectivo"])
+        ui.saldo_tarjeta(col, "Saldo en el sistema", f["sistema"])
+        ui.saldo_tarjeta(
+            col, "Deuda neta a favor", d.get("neto", 0),
+            ayuda=f"Le deben {ui.monto(d.get('por_cobrar', 0))} · "
+                  f"ella debe {ui.monto(d.get('por_pagar', 0))}")
 
-# ---------------------------------------------------------------- total
+# ---------------------------------------------------------------- totales
 st.divider()
 tot_ef = sum(float(f["efectivo"]) for f in filas)
 tot_si = sum(float(f["sistema"]) for f in filas)
@@ -56,10 +54,10 @@ tot_si = sum(float(f["sistema"]) for f in filas)
 tot_de = sum(float(d["por_cobrar_personas"]) for d in deuda_caja.values())
 
 a, b, c, d = st.columns(4)
-a.metric("Efectivo total", db.dinero(tot_ef))
-b.metric("Sistema total", db.dinero(tot_si))
-c.metric("Deuda de personas", db.dinero(tot_de))
-d.metric("Respaldo total", db.dinero(tot_ef + tot_si + tot_de),
+a.metric("Efectivo total", ui.monto(tot_ef))
+b.metric("Sistema total", ui.monto(tot_si))
+c.metric("Deuda de personas", ui.monto(tot_de))
+d.metric("Respaldo total", ui.monto(tot_ef + tot_si + tot_de),
          help="Efectivo + sistema + deuda por cobrar: todo el dinero del negocio.")
 
 # ------------------------------------------------------- hoy, por caja
@@ -75,12 +73,12 @@ cols_tx = st.columns(len(filas))
 for col, f in zip(cols_tx, filas):
     t = tx.get(f["nombre"], {})
     col.metric(f["nombre"], int(t.get("transacciones", 0) or 0),
-               help=f"Ganancia de hoy: {db.dinero(t.get('ganancia', 0), 4)}")
+               help=f"Ganancia de hoy: {ui.monto(t.get('ganancia', 0), 4)}")
 
 total_tx = sum(int(t.get("transacciones", 0) or 0) for t in tx.values())
 total_gan = sum(float(t.get("ganancia", 0) or 0) for t in tx.values())
 st.caption(f"**{total_tx}** transacciones efectivas hoy entre las tres cajas · "
-           f"ganancia {db.dinero(total_gan, 4)}")
+           f"ganancia {ui.monto(total_gan, 4)}")
 
 # ---------------------------------------------------------------- deudas
 st.divider()
@@ -89,17 +87,17 @@ st.subheader("Deudas")
 entre = db.deuda_entre_cajas(cli)
 deudores = db.deuda_por_deudor(cli)
 
-equipo = sum(float(d["debe"]) for d in deudores if d["deudor_tipo"] == "usuario")
-fuera = sum(float(d["debe"]) for d in deudores if d["deudor_tipo"] == "persona")
+equipo = sum(float(x["debe"]) for x in deudores if x["deudor_tipo"] == "usuario")
+fuera = sum(float(x["debe"]) for x in deudores if x["deudor_tipo"] == "persona")
 
 x, y, z = st.columns(3)
-x.metric("Debe el equipo", db.dinero(equipo))
-y.metric("Debe gente de afuera", db.dinero(fuera))
-z.metric("Pendiente entre cajas", db.dinero(sum(float(e["neto"]) for e in entre)))
+x.metric("Debe el equipo", ui.monto(equipo))
+y.metric("Debe gente de afuera", ui.monto(fuera))
+z.metric("Pendiente entre cajas", ui.monto(sum(float(e["neto"]) for e in entre)))
 
 if entre:
     for e in entre:
-        st.caption(f"→ {e['deudora']} le debe {db.dinero(e['neto'])} a {e['acreedora']}")
+        st.caption(f"→ {e['deudora']} le debe {ui.monto(e['neto'])} a {e['acreedora']}")
 else:
     st.caption("Las cajas están a mano entre sí.")
 
@@ -111,18 +109,5 @@ pend = db.movimientos_abiertos(cli)
 if not pend:
     st.info("No hay movimientos pendientes desde el último corte.")
 else:
-    df = pd.DataFrame(pend)
-    df["fecha"] = pd.to_datetime(df["fecha"]).dt.strftime("%d/%m %H:%M")
-    st.dataframe(
-        df[["id", "fecha", "caja", "tipo", "monto", "comision_local",
-            "delta_efectivo", "delta_sistema", "beneficiario", "motivo", "anulado"]],
-        hide_index=True, use_container_width=True,
-        column_config={
-            "id": "#",
-            "comision_local": st.column_config.NumberColumn("Comisión", format="%.2f"),
-            "monto": st.column_config.NumberColumn("Monto", format="%.2f"),
-            "delta_efectivo": st.column_config.NumberColumn("Δ Efectivo", format="%.2f"),
-            "delta_sistema": st.column_config.NumberColumn("Δ Sistema", format="%.2f"),
-        },
-    )
+    ui.tabla_movimientos(pend, alto=360)
     st.caption(f"{len(pend)} movimientos entrarán en el próximo corte.")

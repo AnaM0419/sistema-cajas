@@ -39,8 +39,11 @@ def sesion() -> Client:
         cli.postgrest.auth(st.session_state["token"])
         return cli
 
-    st.title("Sistema de Cajas")
-    st.caption("Ingresa con tu correo y contraseña.")
+    from lib import ui                      # import tardío: evita el círculo
+    st.markdown(ui._CSS, unsafe_allow_html=True)
+    st.markdown('<div class="cinta"><h1>Sistema de Cajas</h1>'
+                '<p>Ingresa con tu correo y contraseña</p></div>',
+                unsafe_allow_html=True)
 
     with st.form("login"):
         correo = st.text_input("Correo")

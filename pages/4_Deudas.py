@@ -2,12 +2,15 @@
 
 import streamlit as st
 import pandas as pd
-from lib import db
+from lib import db, ui
 
-st.set_page_config(page_title="Deudas", page_icon="🧾", layout="wide")
+st.set_page_config(page_title="Deudas", page_icon="🧾", layout="wide",
+                   initial_sidebar_state="expanded")
+
 cli = db.sesion()
-
-st.title("Deudas")
+ui.estilos("Deudas", "Por caja, por persona y entre cajas",
+           correo=st.session_state.get("correo"),
+           al_salir=db.cerrar_sesion)
 
 todas = db.cajas(cli)
 nombres = {c["id"]: c["nombre"] for c in todas}
@@ -26,9 +29,9 @@ with t_resumen:
     total_entre = sum(float(e["neto"]) for e in entre)
 
     a, b = st.columns(2)
-    a.metric("Por cobrar a personas", db.dinero(total_cobrar),
+    a.metric("Por cobrar a personas", ui.monto(total_cobrar),
              help="Lo que deben los del equipo y la gente de afuera.")
-    b.metric("Pendiente entre cajas", db.dinero(total_entre),
+    b.metric("Pendiente entre cajas", ui.monto(total_entre),
              help="Ya compensado: solo lo que falta mover de una gaveta a otra.")
 
     st.divider()
@@ -78,8 +81,8 @@ with t_quien:
         fuera = dfd[dfd["deudor_tipo"] == "persona"]
 
         a, b, c = st.columns(3)
-        a.metric("Debe el equipo", db.dinero(equipo["debe"].sum()))
-        b.metric("Debe gente de afuera", db.dinero(fuera["debe"].sum()))
+        a.metric("Debe el equipo", ui.monto(equipo["debe"].sum()))
+        b.metric("Debe gente de afuera", ui.monto(fuera["debe"].sum()))
         c.metric("Deudor más antiguo",
                  f"{int(dfd['dias_mas_antigua'].max())} días")
 

@@ -6,12 +6,15 @@ sistema cierra las tres de una sola vez, con un consolidado al final.
 
 import streamlit as st
 import pandas as pd
-from lib import db
+from lib import db, ui
 
-st.set_page_config(page_title="Cortes", page_icon="🧾", layout="wide")
+st.set_page_config(page_title="Cortes", page_icon="🧾", layout="wide",
+                   initial_sidebar_state="expanded")
+
 cli = db.sesion()
-
-st.title("Corte de caja")
+ui.estilos("Corte de caja", "Cuenta el efectivo, compara y cierra el período",
+           correo=st.session_state.get("correo"),
+           al_salir=db.cerrar_sesion)
 
 tipo = st.radio(
     "Tipo de corte",
@@ -35,10 +38,10 @@ for col, caja in zip(cols, todas):
     s = saldos[caja["id"]]
     with col:
         st.markdown(f"**{caja['nombre']}**")
-        st.caption(f"Esperado: {db.dinero(s['efectivo'])}")
+        st.caption(f"Esperado: {ui.monto(s['efectivo'])}")
         contado[caja["id"]] = db.campo_monto(
             "Efectivo contado ($)", f"ef_{caja['id']}")
-        st.caption(f"Sistema esperado: {db.dinero(s['sistema'])}")
+        st.caption(f"Sistema esperado: {ui.monto(s['sistema'])}")
         rep = db.campo_monto(
             "Sistema según el banco ($)", f"si_{caja['id']}",
             ayuda="Opcional. Déjalo vacío si no lo vas a verificar ahora.")
@@ -93,7 +96,7 @@ if st.button("Cerrar corte de las tres cajas", type="primary", disabled=not conf
             },
         )
         a, b, c, d = st.columns(4)
-        a.metric("Efectivo total contado", db.dinero(df["efectivo_contado"].sum()))
+        a.metric("Efectivo total contado", ui.monto(df["efectivo_contado"].sum()))
         b.metric("Descuadre total", db.dinero(df["diferencia_efectivo"].sum()))
         c.metric("Transacciones efectivas", int(df["n_efectivas"].sum()))
         d.metric("Ganancia del período", db.dinero(df["comisiones_periodo"].sum()))
